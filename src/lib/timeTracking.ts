@@ -20,6 +20,9 @@ export interface ActiveTimer {
   projectId: string;
   startTime: Date;
   isRunning: boolean;
+  isPaused?: boolean;
+  pausedAt?: Date;
+  totalPausedDuration?: number; // Durée totale des pauses en secondes
 }
 
 export const PROJECT_COLORS = [

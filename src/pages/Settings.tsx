@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Download, Upload, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Header } from '@/components/Header';
+import { Download, Upload, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -93,23 +93,8 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-border">
-        <div className="container mx-auto px-4 sm:px-6 py-6 max-w-5xl">
-          <Link to="/">
-            <Button variant="ghost" size="sm" className="gap-2 mb-4 -ml-2">
-              <ArrowLeft className="h-4 w-4" />
-              Retour
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-foreground">Paramètres</h1>
-              <p className="text-sm text-muted-foreground mt-1">Gérez vos données</p>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Header global */}
+      <Header />
 
       <div className="container mx-auto px-4 sm:px-6 py-8 max-w-5xl space-y-6">
         {/* Synchronisation */}

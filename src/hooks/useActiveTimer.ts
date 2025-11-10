@@ -12,7 +12,9 @@ export const useActiveTimer = () => {
       id: 'active',
       projectId,
       startTime: new Date(),
-      isRunning: true
+      isRunning: true,
+      isPaused: false,
+      totalPausedDuration: 0
     };
     await db.activeTimer.put(timer);
   };
@@ -20,6 +22,30 @@ export const useActiveTimer = () => {
   // Arrêter le timer
   const stopTimer = async () => {
     await db.activeTimer.delete('active');
+  };
+
+  // Mettre en pause le timer
+  const pauseTimer = async () => {
+    if (activeTimer && !activeTimer.isPaused) {
+      await db.activeTimer.update('active', {
+        isPaused: true,
+        pausedAt: new Date()
+      });
+    }
+  };
+
+  // Reprendre le timer après une pause
+  const resumeTimer = async () => {
+    if (activeTimer && activeTimer.isPaused && activeTimer.pausedAt) {
+      const pauseDuration = Math.floor((Date.now() - activeTimer.pausedAt.getTime()) / 1000);
+      const newTotalPausedDuration = (activeTimer.totalPausedDuration || 0) + pauseDuration;
+
+      await db.activeTimer.update('active', {
+        isPaused: false,
+        pausedAt: undefined,
+        totalPausedDuration: newTotalPausedDuration
+      });
+    }
   };
 
   // Mettre à jour le projet du timer
@@ -33,7 +59,10 @@ export const useActiveTimer = () => {
     activeTimer,
     startTimer,
     stopTimer,
+    pauseTimer,
+    resumeTimer,
     updateTimerProject,
-    isRunning: activeTimer?.isRunning || false
+    isRunning: activeTimer?.isRunning || false,
+    isPaused: activeTimer?.isPaused || false
   };
 };

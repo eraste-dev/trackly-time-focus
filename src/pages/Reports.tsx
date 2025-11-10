@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Header } from '@/components/Header';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeEntryRow } from '@/components/TimeEntryRow';
-import { calculateTotalDuration, formatDurationShort, TimeEntry } from '@/lib/timeTracking';
+import { calculateTotalDuration, formatDurationShort } from '@/lib/timeTracking';
 import { useProjects } from '@/hooks/useProjects';
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 
@@ -156,23 +156,8 @@ const Reports = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-border">
-        <div className="container mx-auto px-4 sm:px-6 py-6 max-w-5xl">
-          <Link to="/">
-            <Button variant="ghost" size="sm" className="gap-2 mb-4 -ml-2">
-              <ArrowLeft className="h-4 w-4" />
-              Retour
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-foreground">Rapports</h1>
-              <p className="text-sm text-muted-foreground mt-1">Analysez votre temps de travail</p>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Header global */}
+      <Header />
 
       <div className="container mx-auto px-4 sm:px-6 py-8 max-w-5xl">
         {/* Filtres de période */}

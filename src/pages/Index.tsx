@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Header } from '@/components/Header';
 import { Timer } from '@/components/Timer';
 import { TimeEntryRow } from '@/components/TimeEntryRow';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Clock, BarChart3, FolderOpen, Plus, Settings } from 'lucide-react';
+import { Clock, FolderOpen, Plus } from 'lucide-react';
 import { TimeEntry, formatDurationShort, calculateTotalDuration } from '@/lib/timeTracking';
 import { useProjects } from '@/hooks/useProjects';
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { useActiveTimer } from '@/hooks/useActiveTimer';
+import { useSelectedProject } from '@/hooks/useSelectedProject';
 import { toast } from 'sonner';
 
 // Sons de notification
@@ -27,23 +28,16 @@ const playStopSound = () => {
 const Index = () => {
   const { projects } = useProjects();
   const { timeEntries, addTimeEntry, getEntriesByTimePeriod } = useTimeEntries();
-  const { activeTimer, startTimer, stopTimer } = useActiveTimer();
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
+  const { activeTimer, startTimer, stopTimer, pauseTimer, resumeTimer } = useActiveTimer();
+  const { selectedProjectId, setSelectedProjectId } = useSelectedProject();
   const [showStartConfirm, setShowStartConfirm] = useState(false);
-
-  // Restaurer l'état du timer depuis la DB
-  useEffect(() => {
-    if (activeTimer?.isRunning && activeTimer.projectId) {
-      setSelectedProjectId(activeTimer.projectId);
-    }
-  }, [activeTimer]);
 
   // Auto-sélectionner le premier projet si disponible
   useEffect(() => {
     if (projects.length > 0 && !selectedProjectId && !activeTimer?.isRunning) {
       setSelectedProjectId(projects[0].id);
     }
-  }, [projects, selectedProjectId, activeTimer]);
+  }, [projects, selectedProjectId, activeTimer, setSelectedProjectId]);
 
   const handleStartTimer = () => {
     if (!selectedProjectId) {
@@ -66,7 +60,8 @@ const Index = () => {
     if (!activeTimer?.startTime || !activeTimer.projectId) return;
 
     const endTime = new Date();
-    const duration = Math.floor((endTime.getTime() - activeTimer.startTime.getTime()) / 1000);
+    const totalElapsed = Math.floor((endTime.getTime() - activeTimer.startTime.getTime()) / 1000);
+    const duration = totalElapsed - (activeTimer.totalPausedDuration || 0);
 
     const newEntry: TimeEntry = {
       id: Date.now().toString(),
@@ -81,6 +76,17 @@ const Index = () => {
     playStopSound();
   };
 
+  const handlePauseTimer = async () => {
+    await pauseTimer();
+    toast.info('Timer mis en pause');
+  };
+
+  const handleResumeTimer = async () => {
+    await resumeTimer();
+    playStartSound();
+    toast.success('Timer repris');
+  };
+
   const todayEntries = getEntriesByTimePeriod('day');
   const weekEntries = getEntriesByTimePeriod('week');
 
@@ -88,37 +94,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header minimaliste */}
-      <header className="sticky top-0 z-50 bg-white border-b border-border">
-        <div className="container mx-auto px-4 sm:px-6 py-6 max-w-5xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-foreground">Trackly</h1>
-              <p className="text-sm text-muted-foreground mt-1">Suivi du temps simplifié</p>
-            </div>
-            <div className="flex gap-2">
-              <Link to="/projects">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <FolderOpen className="h-4 w-4" />
-                  <span className="hidden sm:inline">Projets</span>
-                </Button>
-              </Link>
-              <Link to="/reports">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Rapports</span>
-                </Button>
-              </Link>
-              <Link to="/settings">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <Settings className="h-4 w-4" />
-                  <span className="hidden sm:inline">Paramètres</span>
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Header avec sélecteur de projet global */}
+      <Header />
 
       <div className="container mx-auto px-4 sm:px-6 py-8 max-w-5xl">
         {/* Stats minimalistes */}
@@ -174,39 +151,18 @@ const Index = () => {
                 </Link>
               </div>
             ) : (
-              <>
-                <label className="text-sm font-medium text-foreground mb-3 block">
-                  Sélectionner un projet
-                </label>
-                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                  <SelectTrigger className="w-full mb-6 h-12">
-                    <SelectValue placeholder="Choisir un projet..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: project.color }}
-                          />
-                          <span>{project.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-            <div className="flex flex-col items-center py-8">
-              <Timer
-                isRunning={activeTimer?.isRunning || false}
-                onStart={handleStartTimer}
-                onStop={handleStopTimer}
-                projectId={selectedProjectId}
-                startTime={activeTimer?.startTime}
-              />
-            </div>
-
+              <div className="flex flex-col items-center py-8">
+                <Timer
+                  isRunning={activeTimer?.isRunning || false}
+                  isPaused={activeTimer?.isPaused || false}
+                  onStart={handleStartTimer}
+                  onStop={handleStopTimer}
+                  onPause={handlePauseTimer}
+                  onResume={handleResumeTimer}
+                  projectId={selectedProjectId}
+                  startTime={activeTimer?.startTime}
+                  totalPausedDuration={activeTimer?.totalPausedDuration || 0}
+                />
                 {selectedProject && (
                   <div className="mt-6 pt-6 border-t border-border">
                     <div className="flex items-center gap-3 justify-center">
@@ -218,7 +174,7 @@ const Index = () => {
                     </div>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </Card>
@@ -241,50 +197,6 @@ const Index = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        {/* Liste des projets */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-foreground">Projets actifs</h2>
-            <Link to="/projects">
-              <Button variant="outline" size="sm" className="gap-2 border-primary text-primary hover:bg-primary/5">
-                <Plus className="h-4 w-4" />
-                Nouveau
-              </Button>
-            </Link>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {projects.slice(0, 4).map((project) => {
-              const projectTime = todayEntries.filter(e => e.projectId === project.id);
-              const duration = formatDurationShort(calculateTotalDuration(projectTime));
-
-              return (
-                <button
-                  key={project.id}
-                  onClick={() => setSelectedProjectId(project.id)}
-                  className={`p-4 border rounded-lg text-left transition-all ${
-                    selectedProjectId === project.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border bg-white hover:border-primary/50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-3 h-3 rounded-full mt-1"
-                        style={{ backgroundColor: project.color }}
-                      />
-                      <div>
-                        <div className="font-medium text-sm text-foreground">{project.name}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{duration} aujourd'hui</div>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {/* Entrées du jour */}
         <div>

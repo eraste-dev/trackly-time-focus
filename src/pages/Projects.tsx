@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Pencil } from 'lucide-react';
+import { Header } from '@/components/Header';
+import { Plus, Trash2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -91,92 +91,26 @@ const Projects = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-border">
-        <div className="container mx-auto px-4 sm:px-6 py-6 max-w-5xl">
-          <Link to="/">
-            <Button variant="ghost" size="sm" className="gap-2 mb-4 -ml-2">
-              <ArrowLeft className="h-4 w-4" />
-              Retour
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-foreground">Projets</h1>
-              <p className="text-sm text-muted-foreground mt-1">Gérez vos projets</p>
-            </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Nouveau projet</span>
-                  <span className="sm:hidden">Nouveau</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="text-xl font-light">Nouveau projet</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-6 pt-4">
-                  <div>
-                    <Label htmlFor="projectName" className="text-sm font-medium">Nom du projet</Label>
-                    <Input
-                      id="projectName"
-                      value={newProjectName}
-                      onChange={(e) => setNewProjectName(e.target.value)}
-                      placeholder="Mon nouveau projet"
-                      className="mt-2 h-11"
-                      onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Couleur</Label>
-                    <div className="flex gap-2 mt-3 flex-wrap">
-                      {PROJECT_COLORS.map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => setSelectedColor(color)}
-                          className={`w-10 h-10 rounded-lg transition-all ${
-                            selectedColor === color
-                              ? 'ring-2 ring-primary ring-offset-2'
-                              : 'hover:scale-110'
-                          }`}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="newPlannedHours" className="text-sm font-medium">Heures planifiées par jour (optionnel)</Label>
-                    <Input
-                      id="newPlannedHours"
-                      type="number"
-                      min="0"
-                      max="24"
-                      step="0.5"
-                      value={plannedHoursPerDay ?? ''}
-                      onChange={(e) => setPlannedHoursPerDay(e.target.value ? parseFloat(e.target.value) : undefined)}
-                      placeholder="Ex: 8"
-                      className="mt-2 h-11"
-                    />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Permet de mieux suivre votre progression dans les rapports
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleCreateProject}
-                    className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    Créer le projet
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-      </header>
+      {/* Header global */}
+      <Header />
 
       <div className="container mx-auto px-4 sm:px-6 py-8 max-w-5xl">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Projets</h1>
+            <p className="text-sm text-muted-foreground mt-1">Gérez vos projets</p>
+          </div>
+          <Button
+            onClick={() => setIsDialogOpen(true)}
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nouveau projet</span>
+            <span className="sm:hidden">Nouveau</span>
+          </Button>
+        </div>
+
+        {/* Contenu de la page */}
         {projects.length === 0 ? (
           <Card className="p-12 sm:p-16 text-center border border-border shadow-none">
             <div className="max-w-sm mx-auto">
@@ -245,6 +179,68 @@ const Projects = () => {
             ))}
           </div>
         )}
+
+        {/* Dialog de création de projet */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-light">Nouveau projet</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 pt-4">
+              <div>
+                <Label htmlFor="projectName" className="text-sm font-medium">Nom du projet</Label>
+                <Input
+                  id="projectName"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  placeholder="Mon nouveau projet"
+                  className="mt-2 h-11"
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Couleur</Label>
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  {PROJECT_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`w-10 h-10 rounded-lg transition-all ${
+                        selectedColor === color
+                          ? 'ring-2 ring-primary ring-offset-2'
+                          : 'hover:scale-110'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="newPlannedHours" className="text-sm font-medium">Heures planifiées par jour (optionnel)</Label>
+                <Input
+                  id="newPlannedHours"
+                  type="number"
+                  min="0"
+                  max="24"
+                  step="0.5"
+                  value={plannedHoursPerDay ?? ''}
+                  onChange={(e) => setPlannedHoursPerDay(e.target.value ? parseFloat(e.target.value) : undefined)}
+                  placeholder="Ex: 8"
+                  className="mt-2 h-11"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Permet de mieux suivre votre progression dans les rapports
+                </p>
+              </div>
+              <Button
+                onClick={handleCreateProject}
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                Créer le projet
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Dialog d'édition de projet */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
