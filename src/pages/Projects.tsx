@@ -10,11 +10,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { PROJECT_COLORS, calculateTotalDuration, Project } from '@/lib/timeTracking';
 import { useProjects } from '@/hooks/useProjects';
 import { useTimeEntries } from '@/hooks/useTimeEntries';
+import { useActiveTimer } from '@/hooks/useActiveTimer';
 import { toast } from 'sonner';
 
 const Projects = () => {
   const { projects, addProject, updateProject, deleteProject } = useProjects();
   const { timeEntries } = useTimeEntries();
+  const { isRunning, activeTimer } = useActiveTimer();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -68,6 +70,17 @@ const Projects = () => {
     } catch (error) {
       console.error('Erreur lors de la modification:', error);
     }
+  };
+
+  const handleDeleteClick = (project: Project) => {
+    // Vérifier si le timer est actif pour ce projet
+    if (isRunning && activeTimer?.projectId === project.id) {
+      toast.error('Impossible de supprimer le projet', {
+        description: 'Veuillez arrêter le timer avant de supprimer ce projet.'
+      });
+      return;
+    }
+    setProjectToDelete({ id: project.id, name: project.name });
   };
 
   const confirmDeleteProject = async () => {
@@ -167,7 +180,7 @@ const Projects = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setProjectToDelete({ id: project.id, name: project.name })}
+                      onClick={() => handleDeleteClick(project)}
                       className="flex-1 gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 h-9"
                     >
                       <Trash2 className="h-4 w-4" />
