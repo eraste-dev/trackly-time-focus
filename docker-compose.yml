@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  trackly:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trackly-app
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    networks:
+      - trackly-network
+
+  # Service de développement (optionnel)
+  trackly-dev:
+    image: node:20-alpine
+    container_name: trackly-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "8080:8080"
+    command: sh -c "npm install && npm run dev"
+    environment:
+      - NODE_ENV=development
+    networks:
+      - trackly-network
+    profiles:
+      - dev
+
+networks:
+  trackly-network:
+    driver: bridge

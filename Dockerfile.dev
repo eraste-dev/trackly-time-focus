@@ -1,0 +1,23 @@
+# Dockerfile pour le développement avec hot-reload
+FROM node:20-alpine
+
+# Installer les dépendances système nécessaires
+RUN apk add --no-cache git
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de dépendances
+COPY package*.json ./
+
+# Installer les dépendances
+RUN npm install
+
+# Copier le reste du projet
+COPY . .
+
+# Exposer le port de développement
+EXPOSE 8080
+
+# Démarrer le serveur de développement
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
