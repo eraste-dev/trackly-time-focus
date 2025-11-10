@@ -3,6 +3,7 @@ export interface Project {
   name: string;
   color: string;
   createdAt: Date;
+  plannedHoursPerDay?: number; // Heures planifiées par jour
 }
 
 export interface TimeEntry {
@@ -14,36 +15,40 @@ export interface TimeEntry {
   description?: string;
 }
 
+export interface ActiveTimer {
+  id: string; // Toujours 'active' pour avoir un seul enregistrement
+  projectId: string;
+  startTime: Date;
+  isRunning: boolean;
+}
+
 export const PROJECT_COLORS = [
-  '#3b82f6', // blue
-  '#8b5cf6', // purple
-  '#ec4899', // pink
-  '#f59e0b', // amber
-  '#10b981', // green
+  '#8ecae6', // couleur principale - bleu clair
+  '#219ebc', // bleu océan
+  '#023047', // bleu foncé
+  '#ffb703', // jaune/ambre
+  '#fb8500', // orange
   '#06b6d4', // cyan
-  '#ef4444', // red
-  '#f97316', // orange
+  '#10b981', // vert
+  '#6b7280', // gris
 ];
 
 export const formatDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+
+  // Toujours afficher au format HH:MM:SS
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
 export const formatDurationShort = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
+  const secs = seconds % 60;
+
+  // Toujours afficher au format HH:MM:SS
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
 export const calculateTotalDuration = (entries: TimeEntry[]): number => {

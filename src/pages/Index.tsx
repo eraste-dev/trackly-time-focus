@@ -1,231 +1,318 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Timer } from '@/components/Timer';
-import { ProjectCard } from '@/components/ProjectCard';
-import { StatsCard } from '@/components/StatsCard';
 import { TimeEntryRow } from '@/components/TimeEntryRow';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, FolderKanban, TrendingUp, Plus } from 'lucide-react';
-import { Project, TimeEntry, formatDurationShort, calculateTotalDuration, getEntriesByPeriod, PROJECT_COLORS } from '@/lib/timeTracking';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Clock, BarChart3, FolderOpen, Plus, Settings } from 'lucide-react';
+import { TimeEntry, formatDurationShort, calculateTotalDuration } from '@/lib/timeTracking';
+import { useProjects } from '@/hooks/useProjects';
+import { useTimeEntries } from '@/hooks/useTimeEntries';
+import { useActiveTimer } from '@/hooks/useActiveTimer';
 import { toast } from 'sonner';
 
+// Sons de notification
+const playStartSound = () => {
+  const audio = new Audio('/notifications/start.mp3');
+  audio.play().catch(() => {});
+};
+
+const playStopSound = () => {
+  const audio = new Audio('/notifications/stop.mp3');
+  audio.play().catch(() => {});
+};
+
 const Index = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const { projects } = useProjects();
+  const { timeEntries, addTimeEntry, getEntriesByTimePeriod } = useTimeEntries();
+  const { activeTimer, startTimer, stopTimer } = useActiveTimer();
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
-  const [isRunning, setIsRunning] = useState(false);
-  const [currentStartTime, setCurrentStartTime] = useState<Date | null>(null);
+  const [showStartConfirm, setShowStartConfirm] = useState(false);
 
-  // Load data from localStorage
+  // Restaurer l'état du timer depuis la DB
   useEffect(() => {
-    const savedProjects = localStorage.getItem('projects');
-    const savedEntries = localStorage.getItem('timeEntries');
-    
-    if (savedProjects) {
-      setProjects(JSON.parse(savedProjects).map((p: any) => ({
-        ...p,
-        createdAt: new Date(p.createdAt)
-      })));
-    } else {
-      // Create sample projects
-      const sampleProjects: Project[] = [
-        { id: '1', name: 'Site Web Client A', color: PROJECT_COLORS[0], createdAt: new Date() },
-        { id: '2', name: 'Application Mobile', color: PROJECT_COLORS[4], createdAt: new Date() },
-        { id: '3', name: 'Marketing Digital', color: PROJECT_COLORS[3], createdAt: new Date() },
-      ];
-      setProjects(sampleProjects);
-      localStorage.setItem('projects', JSON.stringify(sampleProjects));
+    if (activeTimer?.isRunning && activeTimer.projectId) {
+      setSelectedProjectId(activeTimer.projectId);
     }
-    
-    if (savedEntries) {
-      setTimeEntries(JSON.parse(savedEntries).map((e: any) => ({
-        ...e,
-        startTime: new Date(e.startTime),
-        endTime: e.endTime ? new Date(e.endTime) : undefined
-      })));
-    }
-  }, []);
+  }, [activeTimer]);
 
-  // Save to localStorage
+  // Auto-sélectionner le premier projet si disponible
   useEffect(() => {
-    if (projects.length > 0) {
-      localStorage.setItem('projects', JSON.stringify(projects));
+    if (projects.length > 0 && !selectedProjectId && !activeTimer?.isRunning) {
+      setSelectedProjectId(projects[0].id);
     }
-  }, [projects]);
-
-  useEffect(() => {
-    if (timeEntries.length > 0) {
-      localStorage.setItem('timeEntries', JSON.stringify(timeEntries));
-    }
-  }, [timeEntries]);
+  }, [projects, selectedProjectId, activeTimer]);
 
   const handleStartTimer = () => {
     if (!selectedProjectId) {
       toast.error('Veuillez sélectionner un projet');
       return;
     }
-    setCurrentStartTime(new Date());
-    setIsRunning(true);
+    setShowStartConfirm(true);
+  };
+
+  const confirmStartTimer = async () => {
+    if (!selectedProjectId) return;
+
+    await startTimer(selectedProjectId);
+    setShowStartConfirm(false);
+    playStartSound();
     toast.success('Timer démarré');
   };
 
-  const handleStopTimer = () => {
-    if (!currentStartTime || !selectedProjectId) return;
-    
+  const handleStopTimer = async () => {
+    if (!activeTimer?.startTime || !activeTimer.projectId) return;
+
     const endTime = new Date();
-    const duration = Math.floor((endTime.getTime() - currentStartTime.getTime()) / 1000);
-    
+    const duration = Math.floor((endTime.getTime() - activeTimer.startTime.getTime()) / 1000);
+
     const newEntry: TimeEntry = {
       id: Date.now().toString(),
-      projectId: selectedProjectId,
-      startTime: currentStartTime,
+      projectId: activeTimer.projectId,
+      startTime: activeTimer.startTime,
       endTime,
       duration
     };
-    
-    setTimeEntries(prev => [newEntry, ...prev]);
-    setIsRunning(false);
-    setCurrentStartTime(null);
-    toast.success('Temps enregistré');
+
+    await addTimeEntry(newEntry);
+    await stopTimer();
+    playStopSound();
   };
 
-  const todayEntries = getEntriesByPeriod(timeEntries, 'day');
-  const weekEntries = getEntriesByPeriod(timeEntries, 'week');
-  const monthEntries = getEntriesByPeriod(timeEntries, 'month');
-
-  const getProjectTime = (projectId: string) => {
-    const projectEntries = todayEntries.filter(e => e.projectId === projectId);
-    return formatDurationShort(calculateTotalDuration(projectEntries));
-  };
+  const todayEntries = getEntriesByTimePeriod('day');
+  const weekEntries = getEntriesByTimePeriod('week');
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 max-w-7xl">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">TimeTracker</h1>
-          <p className="text-muted-foreground">Suivez votre temps de travail efficacement</p>
-        </header>
+    <div className="min-h-screen bg-white">
+      {/* Header minimaliste */}
+      <header className="sticky top-0 z-50 bg-white border-b border-border">
+        <div className="container mx-auto px-4 sm:px-6 py-6 max-w-5xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-light tracking-tight text-foreground">Trackly</h1>
+              <p className="text-sm text-muted-foreground mt-1">Suivi du temps simplifié</p>
+            </div>
+            <div className="flex gap-2">
+              <Link to="/projects">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  <span className="hidden sm:inline">Projets</span>
+                </Button>
+              </Link>
+              <Link to="/reports">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Rapports</span>
+                </Button>
+              </Link>
+              <Link to="/settings">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">Paramètres</span>
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
 
-        <div className="grid gap-6 lg:grid-cols-3 mb-8">
-          <StatsCard
-            title="Aujourd'hui"
-            value={formatDurationShort(calculateTotalDuration(todayEntries))}
-            icon={Clock}
-            trend="Total du jour"
-          />
-          <StatsCard
-            title="Cette semaine"
-            value={formatDurationShort(calculateTotalDuration(weekEntries))}
-            icon={TrendingUp}
-            trend="7 derniers jours"
-          />
-          <StatsCard
-            title="Projets actifs"
-            value={projects.length.toString()}
-            icon={FolderKanban}
-          />
+      <div className="container mx-auto px-4 sm:px-6 py-8 max-w-5xl">
+        {/* Stats minimalistes */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+          <div className="text-center py-6 border border-border rounded-lg bg-white">
+            <div className="flex justify-center mb-2">
+              <Clock className="h-5 w-5 text-primary" />
+            </div>
+            <div className="text-2xl font-light text-foreground mb-1">
+              {formatDurationShort(calculateTotalDuration(todayEntries))}
+            </div>
+            <div className="text-xs text-muted-foreground">Aujourd'hui</div>
+          </div>
+
+          <div className="text-center py-6 border border-border rounded-lg bg-white">
+            <div className="flex justify-center mb-2">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="text-2xl font-light text-foreground mb-1">
+              {formatDurationShort(calculateTotalDuration(weekEntries))}
+            </div>
+            <div className="text-xs text-muted-foreground">Cette semaine</div>
+          </div>
+
+          <div className="text-center py-6 border border-border rounded-lg bg-white col-span-2 sm:col-span-1">
+            <div className="flex justify-center mb-2">
+              <FolderOpen className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="text-2xl font-light text-foreground mb-1">
+              {projects.length}
+            </div>
+            <div className="text-xs text-muted-foreground">Projets</div>
+          </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="p-8">
-            <div className="mb-6">
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Projet en cours
-              </label>
-              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Sélectionner un projet" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: project.color }}
-                        />
-                        {project.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Timer central */}
+        <Card className="mb-8 border border-border shadow-none">
+          <div className="p-6 sm:p-8">
+            {projects.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <FolderOpen className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium text-foreground mb-2">Aucun projet disponible</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Créez d'abord un projet pour commencer à suivre votre temps
+                </p>
+                <Link to="/projects">
+                  <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <Plus className="h-4 w-4" />
+                    Créer un projet
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <>
+                <label className="text-sm font-medium text-foreground mb-3 block">
+                  Sélectionner un projet
+                </label>
+                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                  <SelectTrigger className="w-full mb-6 h-12">
+                    <SelectValue placeholder="Choisir un projet..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: project.color }}
+                          />
+                          <span>{project.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-            <div className="flex justify-center py-6">
+            <div className="flex flex-col items-center py-8">
               <Timer
-                isRunning={isRunning}
+                isRunning={activeTimer?.isRunning || false}
                 onStart={handleStartTimer}
                 onStop={handleStopTimer}
                 projectId={selectedProjectId}
+                startTime={activeTimer?.startTime}
               />
             </div>
 
-            {selectedProject && (
-              <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: selectedProject.color }}
-                  />
-                  <span className="font-medium text-sm">{selectedProject.name}</span>
+                {selectedProject && (
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <div className="flex items-center gap-3 justify-center">
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: selectedProject.color }}
+                      />
+                      <span className="text-sm text-muted-foreground">{selectedProject.name}</span>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Card>
+
+        {/* Dialog de confirmation démarrage timer */}
+        <AlertDialog open={showStartConfirm} onOpenChange={setShowStartConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Démarrer le timer ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Vous allez démarrer le suivi du temps pour le projet{' '}
+                <span className="font-semibold">{selectedProject?.name}</span>.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmStartTimer} className="bg-primary hover:bg-primary/90">
+                Démarrer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Liste des projets */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium text-foreground">Projets actifs</h2>
+            <Link to="/projects">
+              <Button variant="outline" size="sm" className="gap-2 border-primary text-primary hover:bg-primary/5">
+                <Plus className="h-4 w-4" />
+                Nouveau
+              </Button>
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {projects.slice(0, 4).map((project) => {
+              const projectTime = todayEntries.filter(e => e.projectId === project.id);
+              const duration = formatDurationShort(calculateTotalDuration(projectTime));
+
+              return (
+                <button
+                  key={project.id}
+                  onClick={() => setSelectedProjectId(project.id)}
+                  className={`p-4 border rounded-lg text-left transition-all ${
+                    selectedProjectId === project.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-white hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-3 h-3 rounded-full mt-1"
+                        style={{ backgroundColor: project.color }}
+                      />
+                      <div>
+                        <div className="font-medium text-sm text-foreground">{project.name}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{duration} aujourd'hui</div>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Entrées du jour */}
+        <div>
+          <h2 className="text-lg font-medium text-foreground mb-4">Aujourd'hui</h2>
+          <Card className="border border-border shadow-none">
+            <div className="divide-y divide-border">
+              {todayEntries.length === 0 ? (
+                <div className="p-8 text-center">
+                  <p className="text-sm text-muted-foreground">Aucune entrée aujourd'hui</p>
                 </div>
+              ) : (
+                todayEntries.slice(0, 8).map((entry) => {
+                  const project = projects.find(p => p.id === entry.projectId);
+                  if (!project) return null;
+                  return <TimeEntryRow key={entry.id} entry={entry} project={project} />;
+                })
+              )}
+            </div>
+            {todayEntries.length > 8 && (
+              <div className="p-4 border-t border-border">
+                <Link to="/reports">
+                  <Button variant="ghost" className="w-full text-sm">
+                    Voir toutes les entrées
+                  </Button>
+                </Link>
               </div>
             )}
           </Card>
-
-          <div className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-foreground">Projets actifs</h2>
-                <Link to="/projects">
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Nouveau
-                  </Button>
-                </Link>
-              </div>
-              <div className="grid gap-3">
-                {projects.slice(0, 4).map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    totalTime={getProjectTime(project.id)}
-                    isSelected={selectedProjectId === project.id}
-                    onClick={() => setSelectedProjectId(project.id)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4 text-card-foreground">Aujourd'hui</h2>
-              <div className="space-y-1">
-                {todayEntries.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    Aucune entrée aujourd'hui
-                  </p>
-                ) : (
-                  todayEntries.slice(0, 5).map((entry) => {
-                    const project = projects.find(p => p.id === entry.projectId);
-                    if (!project) return null;
-                    return <TimeEntryRow key={entry.id} entry={entry} project={project} />;
-                  })
-                )}
-              </div>
-              {todayEntries.length > 5 && (
-                <Link to="/reports">
-                  <Button variant="ghost" className="w-full mt-4">
-                    Voir tout
-                  </Button>
-                </Link>
-              )}
-            </Card>
-          </div>
         </div>
       </div>
     </div>

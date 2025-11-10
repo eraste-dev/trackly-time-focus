@@ -9,26 +9,30 @@ interface TimerProps {
   onStart: () => void;
   onStop: () => void;
   projectId?: string;
+  startTime?: Date;
 }
 
-export const Timer = ({ isRunning, onStart, onStop, projectId }: TimerProps) => {
+export const Timer = ({ isRunning, onStart, onStop, projectId, startTime }: TimerProps) => {
   const [elapsed, setElapsed] = useState(0);
 
+  // Calculer le temps écoulé depuis startTime
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isRunning) {
-      interval = setInterval(() => {
-        setElapsed(prev => prev + 1);
+    if (isRunning && startTime) {
+      // Calculer le temps initial écoulé
+      const initialElapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+      setElapsed(initialElapsed);
+
+      // Mettre à jour chaque seconde
+      const interval = setInterval(() => {
+        const currentElapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+        setElapsed(currentElapsed);
       }, 1000);
-    } else {
+
+      return () => clearInterval(interval);
+    } else if (!isRunning) {
       setElapsed(0);
     }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isRunning]);
+  }, [isRunning, startTime]);
 
   return (
     <div className="flex flex-col items-center gap-6">
