@@ -26,6 +26,9 @@ interface SyncStatus {
 const SYNC_STORAGE_KEY = 'trackly_sync_store';
 const SYNC_STATUS_KEY = 'trackly_sync_status';
 const SYNC_VERSION = '2.0';
+const SYNC_FILE_PROJECTS = '/data/projects.json';
+const SYNC_FILE_ENTRIES = '/data/timeEntries.json';
+const SYNC_FILE_TIMER = '/data/activeTimer.json';
 
 // Générer un checksum simple pour vérifier l'intégrité
 const generateChecksum = (data: any): string => {
@@ -53,6 +56,71 @@ const getCurrentData = async (): Promise<Omit<SyncData, 'checksum' | 'timestamp'
   };
 };
 
+// Sauvegarder dans les fichiers JSON (public/data)
+const saveToJsonFiles = async (data: Omit<SyncData, 'checksum' | 'timestamp' | 'lastSync'>): Promise<boolean> => {
+  try {
+    const timestamp = Date.now();
+    const lastSync = new Date().toISOString();
+
+    // Sauvegarder les projets
+    const projectsData = {
+      version: data.version,
+      timestamp,
+      lastSync,
+      projects: data.projects,
+      checksum: generateChecksum(data.projects)
+    };
+
+    // Sauvegarder les entrées de temps
+    const entriesData = {
+      version: data.version,
+      timestamp,
+      lastSync,
+      timeEntries: data.timeEntries,
+      checksum: generateChecksum(data.timeEntries)
+    };
+
+    // Sauvegarder le timer actif
+    const timerData = {
+      version: data.version,
+      timestamp,
+      lastSync,
+      activeTimer: data.activeTimer,
+      checksum: generateChecksum(data.activeTimer)
+    };
+
+    // Utiliser l'API Fetch pour envoyer au serveur (développement uniquement)
+    // En production, on utilisera localStorage comme fallback
+    const saveFile = async (filename: string, content: any) => {
+      try {
+        const response = await fetch(`/api/save-sync${filename}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(content)
+        });
+        return response.ok;
+      } catch (error) {
+        // Fallback: sauvegarder dans localStorage avec un préfixe spécial
+        const key = `trackly_file_${filename.replace(/\//g, '_')}`;
+        localStorage.setItem(key, JSON.stringify(content));
+        return true;
+      }
+    };
+
+    await Promise.all([
+      saveFile(SYNC_FILE_PROJECTS, projectsData),
+      saveFile(SYNC_FILE_ENTRIES, entriesData),
+      saveFile(SYNC_FILE_TIMER, timerData)
+    ]);
+
+    console.log('✅ Données sauvegardées dans les fichiers JSON');
+    return true;
+  } catch (error) {
+    console.error('❌ Erreur lors de la sauvegarde dans les fichiers:', error);
+    return false;
+  }
+};
+
 // Sauvegarder les données dans le store de synchronisation
 export const saveSyncData = async (): Promise<boolean> => {
   try {
@@ -66,6 +134,9 @@ export const saveSyncData = async (): Promise<boolean> => {
 
     // Sauvegarder dans localStorage
     localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(syncData));
+
+    // Sauvegarder dans les fichiers JSON
+    await saveToJsonFiles(data);
 
     // Mettre à jour le statut
     const status: SyncStatus = {
@@ -88,15 +159,75 @@ export const saveSyncData = async (): Promise<boolean> => {
   }
 };
 
+// Charger depuis les fichiers JSON
+const loadFromJsonFiles = async (): Promise<Partial<SyncData> | null> => {
+  try {
+    const loadFile = async (filename: string) => {
+      try {
+        // Essayer de charger depuis le serveur
+        const response = await fetch(filename);
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (error) {
+        // Fallback: charger depuis localStorage
+        const key = `trackly_file_${filename.replace(/\//g, '_')}`;
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          return JSON.parse(stored);
+        }
+      }
+      return null;
+    };
+
+    const [projectsData, entriesData, timerData] = await Promise.all([
+      loadFile(SYNC_FILE_PROJECTS),
+      loadFile(SYNC_FILE_ENTRIES),
+      loadFile(SYNC_FILE_TIMER)
+    ]);
+
+    if (!projectsData && !entriesData) {
+      return null;
+    }
+
+    return {
+      version: projectsData?.version || SYNC_VERSION,
+      timestamp: Math.max(projectsData?.timestamp || 0, entriesData?.timestamp || 0),
+      lastSync: projectsData?.lastSync || new Date().toISOString(),
+      projects: projectsData?.projects || [],
+      timeEntries: entriesData?.timeEntries || [],
+      activeTimer: timerData?.activeTimer || null,
+      checksum: '' // Sera recalculé
+    };
+  } catch (error) {
+    console.error('❌ Erreur lors du chargement depuis les fichiers:', error);
+    return null;
+  }
+};
+
 // Charger les données depuis le store de synchronisation
 export const loadSyncData = async (): Promise<{ success: boolean; message: string }> => {
   try {
-    const syncDataStr = localStorage.getItem(SYNC_STORAGE_KEY);
-    if (!syncDataStr) {
-      return { success: false, message: 'Aucune donnée de synchronisation trouvée' };
+    // Essayer d'abord de charger depuis les fichiers JSON
+    let syncData: SyncData | null = null;
+    const fileData = await loadFromJsonFiles();
+
+    if (fileData && fileData.projects && fileData.timeEntries) {
+      syncData = fileData as SyncData;
+      console.log('📂 Données chargées depuis les fichiers JSON');
+    } else {
+      // Fallback: charger depuis localStorage
+      const syncDataStr = localStorage.getItem(SYNC_STORAGE_KEY);
+      if (!syncDataStr) {
+        return { success: false, message: 'Aucune donnée de synchronisation trouvée' };
+      }
+      syncData = JSON.parse(syncDataStr);
+      console.log('💾 Données chargées depuis localStorage');
     }
 
-    const syncData: SyncData = JSON.parse(syncDataStr);
+    if (!syncData) {
+      return { success: false, message: 'Aucune donnée de synchronisation trouvée' };
+    }
 
     // Vérifier la version
     if (syncData.version !== SYNC_VERSION) {

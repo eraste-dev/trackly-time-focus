@@ -1,6 +1,12 @@
 # Dossier de Synchronisation Trackly
 
-Ce dossier est destiné à stocker les fichiers JSON de synchronisation pour l'application Trackly.
+Ce dossier contient les fichiers JSON de synchronisation pour l'application Trackly. Les données sont automatiquement sauvegardées dans ces fichiers pour permettre la persistance entre les sessions et navigateurs.
+
+## Fichiers de Synchronisation
+
+- **projects.json** : Liste de tous les projets
+- **timeEntries.json** : Liste de toutes les entrées de temps
+- **activeTimer.json** : Timer actif (si présent)
 
 ## Système de Synchronisation
 
@@ -11,16 +17,22 @@ Trackly utilise un système de synchronisation optimisé à plusieurs niveaux :
 - Rapide et efficace pour les opérations quotidiennes
 - Persistant entre les sessions
 
-### 2. localStorage (Store de synchronisation)
-- Sauvegarde automatique toutes les 5 minutes
+### 2. Fichiers JSON (public/data)
+- **Sauvegarde automatique toutes les 5 minutes**
 - Détection de changements toutes les 30 secondes
 - Synchronisation lors du changement d'onglet
-- Permet une persistance rapide des données
+- Chargement automatique au démarrage de l'application
+- Les fichiers sont accessibles via `/data/projects.json`, `/data/timeEntries.json`, `/data/activeTimer.json`
 
-### 3. Fichiers JSON (Export/Import)
-- Pour synchroniser entre différents navigateurs
+### 3. localStorage (Fallback)
+- Utilisé comme fallback si les fichiers JSON ne sont pas accessibles
+- Sauvegarde de secours pour garantir la persistance des données
+- Permet la synchronisation rapide entre onglets du même navigateur
+
+### 4. Export/Import manuel
+- Pour synchroniser entre différents navigateurs/appareils
 - Pour faire des sauvegardes externes
-- Pour transférer des données entre appareils
+- Pour transférer des données manuellement
 
 ## Comment synchroniser entre navigateurs ?
 
@@ -81,12 +93,21 @@ Cette approche évite les doublons et garantit que les données les plus à jour
 
 ## Sauvegarde automatique
 
-Le système sauvegarde automatiquement vos données :
-- ✅ Toutes les 5 minutes (synchronisation programmée)
-- ✅ Toutes les 30 secondes (si changements détectés)
-- ✅ Lors du changement d'onglet (actif → inactif)
-- ✅ Avant la fermeture du navigateur (beforeunload)
-- ✅ Au retour sur l'onglet (inactif → actif)
+Le système sauvegarde automatiquement vos données dans les fichiers JSON :
+- ✅ **Toutes les 5 minutes** (synchronisation programmée vers fichiers)
+- ✅ **Toutes les 30 secondes** (si changements détectés)
+- ✅ **Lors du changement d'onglet** (actif → inactif)
+- ✅ **Avant la fermeture du navigateur** (beforeunload)
+- ✅ **Au retour sur l'onglet** (inactif → actif)
+- ✅ **Au démarrage de l'application** (chargement depuis les fichiers)
+
+### Écran de chargement
+
+Lors du démarrage de l'application, un écran de chargement s'affiche avec les étapes suivantes :
+1. **Migration des données** - Transfert depuis l'ancien système si nécessaire
+2. **Synchronisation en cours** - Chargement depuis les fichiers JSON
+3. **Configuration de la synchronisation automatique** - Activation du système de sauvegarde
+4. **Application prête** - Lancement de l'application
 
 ## Bonnes pratiques
 

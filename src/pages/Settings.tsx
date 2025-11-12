@@ -127,20 +127,6 @@ const Settings = () => {
                   {isSyncing ? 'Sync...' : 'Synchroniser'}
                 </Button>
               </div>
-
-              {/* Informations sur la synchronisation */}
-              <div className="space-y-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm font-medium text-blue-900">
-                  💡 Comment fonctionne la synchronisation ?
-                </p>
-                <ul className="text-xs text-blue-800 space-y-1 ml-4 list-disc">
-                  <li>Vos données sont sauvegardées automatiquement toutes les 5 minutes</li>
-                  <li>Les changements sont détectés et synchronisés toutes les 30 secondes</li>
-                  <li>La synchronisation se fait automatiquement lors du changement d'onglet</li>
-                  <li>Les données sont stockées dans le localStorage pour une synchronisation entre navigateurs</li>
-                  <li>Pour synchroniser entre différents navigateurs, exportez vos données et importez-les dans l'autre navigateur</li>
-                </ul>
-              </div>
             </div>
           </div>
         </Card>

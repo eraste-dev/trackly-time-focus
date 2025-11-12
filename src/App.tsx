@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,29 +10,51 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { ActiveTimerFooter } from "@/components/ActiveTimerFooter";
+import { LoadingScreen } from "@/components/LoadingScreen";
 import { migrateFromLocalStorage } from "@/lib/db";
-import { loadSyncData, startAutoSync, stopAutoSync } from "@/lib/sync";
+import { loadSyncData, startAutoSync, stopAutoSync, saveSyncData } from "@/lib/sync";
 import { SelectedProjectProvider } from "@/contexts/SelectedProjectContext";
 
 const queryClient = new QueryClient();
 
 const App = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState('Initialisation...');
+
   // Migration et initialisation au démarrage
   useEffect(() => {
     const initialize = async () => {
-      // Migration depuis localStorage (première fois uniquement)
-      await migrateFromLocalStorage();
+      try {
+        setIsLoading(true);
 
-      // Charger depuis le store de synchronisation optimisé
-      const result = await loadSyncData();
-      if (result.success) {
-        console.log('✅', result.message);
-      } else {
-        console.log('ℹ️', result.message);
+        // Étape 1: Migration
+        setLoadingMessage('Migration des données...');
+        await migrateFromLocalStorage();
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Étape 2: Chargement depuis les fichiers de synchronisation
+        setLoadingMessage('Synchronisation en cours...');
+        const result = await loadSyncData();
+        if (result.success) {
+          console.log('✅', result.message);
+        } else {
+          console.log('ℹ️', result.message);
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Étape 3: Démarrer la synchronisation automatique
+        setLoadingMessage('Configuration de la synchronisation automatique...');
+        startAutoSync(5);
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Étape 4: Prêt
+        setLoadingMessage('Application prête!');
+        await new Promise(resolve => setTimeout(resolve, 200));
+      } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation:', error);
+      } finally {
+        setIsLoading(false);
       }
-
-      // Démarrer la synchronisation automatique (toutes les 5 minutes + détection de changements)
-      startAutoSync(5);
     };
 
     initialize();
@@ -40,8 +62,14 @@ const App = () => {
     // Nettoyer à la fermeture
     return () => {
       stopAutoSync();
+      saveSyncData(); // Sauvegarder avant de quitter
     };
   }, []);
+
+  // Afficher l'écran de chargement pendant l'initialisation
+  if (isLoading) {
+    return <LoadingScreen message={loadingMessage} details="Veuillez patienter pendant que nous chargeons vos données..." />;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
