@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart3, FolderOpen, Settings, Home, Timer } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useActiveTimer } from '@/hooks/useActiveTimer';
-import { useSelectedProject } from '@/hooks/useSelectedProject';
+import { useSelectedProject } from '@/contexts/SelectedProjectContext';
 import { cn } from '@/lib/utils';
 
 export const Header = () => {
@@ -42,7 +42,6 @@ export const Header = () => {
                 <Select
                   value={selectedProjectId}
                   onValueChange={setSelectedProjectId}
-                  disabled={isRunning}
                 >
                   <SelectTrigger className={cn(
                     "w-full border-2 transition-all",
@@ -67,7 +66,7 @@ export const Header = () => {
                 </Select>
                 {isRunning && activeTimer && (
                   <p className="text-xs text-success mt-1 ml-1 font-medium animate-pulse">
-                    ● Timer en cours
+                    ● Timer en cours sur {projects.find(p => p.id === activeTimer.projectId)?.name}
                   </p>
                 )}
               </div>

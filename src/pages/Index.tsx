@@ -11,7 +11,7 @@ import { TimeEntry, formatDurationShort, calculateTotalDuration } from '@/lib/ti
 import { useProjects } from '@/hooks/useProjects';
 import { useTimeEntries } from '@/hooks/useTimeEntries';
 import { useActiveTimer } from '@/hooks/useActiveTimer';
-import { useSelectedProject } from '@/hooks/useSelectedProject';
+import { useSelectedProject } from '@/contexts/SelectedProjectContext';
 import { toast } from 'sonner';
 
 // Sons de notification
@@ -87,8 +87,17 @@ const Index = () => {
     toast.success('Timer repris');
   };
 
-  const todayEntries = getEntriesByTimePeriod('day');
-  const weekEntries = getEntriesByTimePeriod('week');
+  // Filtrer les entrées par projet sélectionné
+  const allTodayEntries = getEntriesByTimePeriod('day');
+  const allWeekEntries = getEntriesByTimePeriod('week');
+
+  const todayEntries = selectedProjectId
+    ? allTodayEntries.filter(e => e.projectId === selectedProjectId)
+    : allTodayEntries;
+
+  const weekEntries = selectedProjectId
+    ? allWeekEntries.filter(e => e.projectId === selectedProjectId)
+    : allWeekEntries;
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
@@ -159,18 +168,31 @@ const Index = () => {
                   onStop={handleStopTimer}
                   onPause={handlePauseTimer}
                   onResume={handleResumeTimer}
-                  projectId={selectedProjectId}
+                  projectId={activeTimer?.isRunning ? activeTimer.projectId : selectedProjectId}
                   startTime={activeTimer?.startTime}
                   totalPausedDuration={activeTimer?.totalPausedDuration || 0}
                 />
-                {selectedProject && (
+                {/* Afficher le projet du timer si actif, sinon le projet sélectionné */}
+                {((activeTimer?.isRunning && activeTimer.projectId) || selectedProjectId) && (
                   <div className="mt-6 pt-6 border-t border-border">
                     <div className="flex items-center gap-3 justify-center">
                       <div
                         className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: selectedProject.color }}
+                        style={{
+                          backgroundColor: activeTimer?.isRunning
+                            ? projects.find(p => p.id === activeTimer.projectId)?.color
+                            : selectedProject?.color
+                        }}
                       />
-                      <span className="text-sm text-muted-foreground">{selectedProject.name}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {activeTimer?.isRunning
+                          ? projects.find(p => p.id === activeTimer.projectId)?.name
+                          : selectedProject?.name
+                        }
+                      </span>
+                      {activeTimer?.isRunning && (
+                        <span className="text-xs text-success font-medium">(en cours)</span>
+                      )}
                     </div>
                   </div>
                 )}

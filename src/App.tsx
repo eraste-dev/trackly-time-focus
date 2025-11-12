@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import { ActiveTimerFooter } from "@/components/ActiveTimerFooter";
 import { migrateFromLocalStorage } from "@/lib/db";
 import { loadSyncData, startAutoSync, stopAutoSync } from "@/lib/sync";
+import { SelectedProjectProvider } from "@/contexts/SelectedProjectContext";
 
 const queryClient = new QueryClient();
 
@@ -44,21 +45,23 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/settings" element={<Settings />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <ActiveTimerFooter />
-        </BrowserRouter>
-      </TooltipProvider>
+      <SelectedProjectProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/settings" element={<Settings />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <ActiveTimerFooter />
+          </BrowserRouter>
+        </TooltipProvider>
+      </SelectedProjectProvider>
     </QueryClientProvider>
   );
 };
