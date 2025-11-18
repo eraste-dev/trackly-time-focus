@@ -11,6 +11,11 @@ import { ProjectChart } from '@/components/reports/ProjectChart';
 import { ReportSummary } from '@/components/reports/ReportSummary';
 import { CrossReportView } from '@/components/reports/CrossReportView';
 import { PlannedVsActual } from '@/components/reports/PlannedVsActual';
+import { DoughnutChart } from '@/components/reports/DoughnutChart';
+import { StatsCards } from '@/components/reports/StatsCards';
+import { EvolutionChart } from '@/components/reports/EvolutionChart';
+import { HorizontalBarChart } from '@/components/reports/HorizontalBarChart';
+import { ActivityHeatmap } from '@/components/reports/ActivityHeatmap';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 
@@ -114,6 +119,12 @@ const Reports = () => {
     if (period === 'week') return 'Cette semaine';
     return 'Ce mois';
   };
+
+  // Calculer la moyenne par jour
+  const averagePerDay = useMemo(() => {
+    const daysCount = period === 'day' ? 1 : period === 'week' ? 7 : 30;
+    return totalDuration / daysCount;
+  }, [totalDuration, period]);
 
   // Générer les données pour le rapport croisé
   const crossReportData = useMemo(() => {
@@ -269,16 +280,63 @@ const Reports = () => {
             </div>
 
             <div className="space-y-6">
-              {/* Graphique avec barres verticales et lignes */}
+              {/* Stats Cards avec KPIs */}
+              <StatsCards
+                totalDuration={totalDuration}
+                projectsCount={projectStats.length}
+                averagePerDay={averagePerDay}
+                filteredEntries={filteredEntries}
+                period={period}
+              />
+
+              {/* Layout en grille pour Doughnut et Barres Horizontales */}
               {projectStats.length > 0 && (
-                <ProjectChart
-                  projectStats={projectStats}
-                  periodLabel={getPeriodLabel()}
-                  totalDuration={totalDuration}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Doughnut Chart - Répartition */}
+                  <DoughnutChart
+                    projectStats={projectStats}
+                    totalDuration={totalDuration}
+                    periodLabel={getPeriodLabel()}
+                  />
+
+                  {/* Barres Horizontales - Top Projets */}
+                  <HorizontalBarChart
+                    projectStats={projectStats}
+                    periodLabel={getPeriodLabel()}
+                  />
+                </div>
+              )}
+
+              {/* Area Chart - Évolution temporelle */}
+              {period !== 'day' && (
+                <EvolutionChart
+                  projects={projects}
+                  timeEntries={timeEntries}
+                  period={period}
                 />
               )}
 
-              {/* Statistiques globales et historique */}
+              {/* Heatmap Calendar - Activité sur 12 semaines */}
+              <ActivityHeatmap timeEntries={timeEntries} />
+
+              {/* Graphiques de comparaison planifié vs réalisé */}
+              <PlannedVsActual projectStats={projectStats} />
+
+              {/* Ancien graphique en mode replié (pour référence) */}
+              {projectStats.length > 0 && (
+                <details className="mt-6">
+                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground mb-4">
+                    Afficher l'ancien graphique (legacy)
+                  </summary>
+                  <ProjectChart
+                    projectStats={projectStats}
+                    periodLabel={getPeriodLabel()}
+                    totalDuration={totalDuration}
+                  />
+                </details>
+              )}
+
+              {/* Statistiques détaillées */}
               <ReportSummary
                 periodLabel={getPeriodLabel()}
                 totalDuration={totalDuration}
@@ -286,9 +344,6 @@ const Reports = () => {
                 filteredEntries={filteredEntries}
                 projects={projects}
               />
-
-              {/* Graphiques de comparaison planifié vs réalisé */}
-              <PlannedVsActual projectStats={projectStats} />
             </div>
           </>
         )}
