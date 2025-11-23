@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ChevronLeft, ChevronRight, Clock, Trash2, Search, Shield } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Trash2, Search, Shield, Lock } from 'lucide-react';
 import { TimeEntry, formatDuration, calculateTotalDuration } from '@/lib/timeTracking';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -156,9 +156,14 @@ export default function Sessions() {
       <div className="container mx-auto px-4 py-6 max-w-5xl">
         {/* Badge admin */}
         {!isAdmin && (
-          <div className="mb-4 px-4 py-2 bg-muted/50 rounded-lg border border-border flex items-center gap-2 text-sm text-muted-foreground">
-            <Shield className="h-4 w-4" />
-            <span>Seuls les administrateurs peuvent modifier ou supprimer des sessions</span>
+          <div className="mb-4 px-4 py-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 flex items-center gap-3 text-sm">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="font-medium text-amber-900 dark:text-amber-100">Modification réservée aux administrateurs</p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">Vous pouvez consulter toutes les sessions mais seuls les admins peuvent les modifier ou supprimer</p>
+            </div>
           </div>
         )}
 
