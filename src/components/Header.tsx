@@ -1,19 +1,36 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart3, FolderOpen, Settings, Home, Timer } from 'lucide-react';
+import { BarChart3, FolderOpen, Settings, Home, Timer, Clock, Users, LogOut } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useActiveTimer } from '@/hooks/useActiveTimer';
 import { useSelectedProject } from '@/contexts/SelectedProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 export const Header = () => {
   const { projects } = useProjects();
   const { isRunning, activeTimer } = useActiveTimer();
   const { selectedProjectId, setSelectedProjectId } = useSelectedProject();
+  const { isAdmin, logout, currentUser } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSettingsClick = (e: React.MouseEvent) => {
+    if (isRunning) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    navigate('/settings');
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border shadow-sm">
@@ -42,12 +59,16 @@ export const Header = () => {
                 <Select
                   value={selectedProjectId}
                   onValueChange={setSelectedProjectId}
+                  disabled={isRunning}
                 >
-                  <SelectTrigger className={cn(
-                    "w-full border-2 transition-all",
-                    isRunning && "border-success/30 bg-success/5",
-                    !isRunning && "hover:border-primary/30"
-                  )}>
+                  <SelectTrigger
+                    disabled={isRunning}
+                    className={cn(
+                      "w-full border-2 transition-all",
+                      isRunning && "border-success/30 bg-success/5 cursor-not-allowed",
+                      !isRunning && "hover:border-primary/30"
+                    )}
+                  >
                     <SelectValue placeholder="Sélectionner un projet..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -114,20 +135,62 @@ export const Header = () => {
                 <span className="hidden sm:inline">Rapports</span>
               </Button>
             </Link>
-            <Link to="/settings">
+            <Link to="/sessions">
               <Button
-                variant={isActive('/settings') ? 'default' : 'ghost'}
+                variant={isActive('/sessions') ? 'default' : 'ghost'}
                 size="sm"
                 className={cn(
                   "gap-2 transition-all",
-                  isActive('/settings') && "shadow-sm"
+                  isActive('/sessions') && "shadow-sm"
                 )}
-                disabled={isRunning}
               >
-                <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Paramètres</span>
+                <Clock className="h-4 w-4" />
+                <span className="hidden sm:inline">Sessions</span>
               </Button>
             </Link>
+            {isAdmin && (
+              <Link to="/users">
+                <Button
+                  variant={isActive('/users') ? 'default' : 'ghost'}
+                  size="sm"
+                  className={cn(
+                    "gap-2 transition-all",
+                    isActive('/users') && "shadow-sm"
+                  )}
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="hidden sm:inline">Utilisateurs</span>
+                </Button>
+              </Link>
+            )}
+            <Button
+              variant={isActive('/settings') ? 'default' : 'ghost'}
+              size="sm"
+              className={cn(
+                "gap-2 transition-all",
+                isActive('/settings') && "shadow-sm"
+              )}
+              disabled={isRunning}
+              onClick={handleSettingsClick}
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Paramètres</span>
+            </Button>
+            <div className="flex-1" />
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {currentUser?.username}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Déconnexion</span>
+              </Button>
+            </div>
           </nav>
         </div>
       </div>

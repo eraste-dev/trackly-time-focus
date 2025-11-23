@@ -3,19 +3,56 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Projects from "./pages/Projects";
 import Reports from "./pages/Reports";
+import Sessions from "./pages/Sessions";
 import Settings from "./pages/Settings";
+import Login from "./pages/Login";
+import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import { ActiveTimerFooter } from "@/components/ActiveTimerFooter";
 import { LoadingScreen } from "@/components/LoadingScreen";
-import { migrateFromLocalStorage } from "@/lib/db";
+import { migrateFromLocalStorage, initializeAdmin } from "@/lib/db";
 import { loadSyncData, startAutoSync, stopAutoSync, saveSyncData } from "@/lib/sync";
 import { SelectedProjectProvider } from "@/contexts/SelectedProjectContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
+
+// Composant pour protéger les routes
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen message="Vérification..." />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const AppRoutes = () => {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <Routes>
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+      <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/sessions" element={<ProtectedRoute><Sessions /></ProtectedRoute>} />
+      <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 const App = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +68,11 @@ const App = () => {
         setLoadingMessage('Migration des données...');
         await migrateFromLocalStorage();
         await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Étape 1.5: Initialiser l'admin
+        setLoadingMessage('Initialisation de l\'admin...');
+        await initializeAdmin();
+        await new Promise(resolve => setTimeout(resolve, 200));
 
         // Étape 2: Chargement depuis les fichiers de synchronisation
         setLoadingMessage('Synchronisation en cours...');
@@ -73,23 +115,18 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SelectedProjectProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/settings" element={<Settings />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <ActiveTimerFooter />
-          </BrowserRouter>
-        </TooltipProvider>
-      </SelectedProjectProvider>
+      <AuthProvider>
+        <SelectedProjectProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+              <ActiveTimerFooter />
+            </BrowserRouter>
+          </TooltipProvider>
+        </SelectedProjectProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };

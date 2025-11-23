@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Timer } from '@/components/Timer';
 import { TimeEntryRow } from '@/components/TimeEntryRow';
+import { FocusMode } from '@/components/FocusMode';
+import { EditTimeEntryDialog } from '@/components/EditTimeEntryDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -27,10 +29,13 @@ const playStopSound = () => {
 
 const Index = () => {
   const { projects } = useProjects();
-  const { timeEntries, addTimeEntry, getEntriesByTimePeriod } = useTimeEntries();
+  const { timeEntries, addTimeEntry, updateTimeEntry, deleteTimeEntry, getEntriesByTimePeriod } = useTimeEntries();
   const { activeTimer, startTimer, stopTimer, pauseTimer, resumeTimer } = useActiveTimer();
   const { selectedProjectId, setSelectedProjectId } = useSelectedProject();
   const [showStartConfirm, setShowStartConfirm] = useState(false);
+  const [showFocusMode, setShowFocusMode] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<TimeEntry | null>(null);
 
   // Auto-sélectionner le premier projet si disponible
   useEffect(() => {
@@ -85,6 +90,27 @@ const Index = () => {
     await resumeTimer();
     playStartSound();
     toast.success('Timer repris');
+  };
+
+  // Handlers pour édition et suppression
+  const handleEditEntry = (entry: TimeEntry) => {
+    setEditingEntry(entry);
+  };
+
+  const handleSaveEntry = async (updatedEntry: TimeEntry) => {
+    await updateTimeEntry(updatedEntry.id, updatedEntry);
+    setEditingEntry(null);
+  };
+
+  const handleDeleteEntry = (entry: TimeEntry) => {
+    setDeletingEntry(entry);
+  };
+
+  const confirmDeleteEntry = async () => {
+    if (deletingEntry) {
+      await deleteTimeEntry(deletingEntry.id);
+      setDeletingEntry(null);
+    }
   };
 
   // Filtrer les entrées par projet sélectionné
@@ -233,7 +259,15 @@ const Index = () => {
                 todayEntries.slice(0, 8).map((entry) => {
                   const project = projects.find(p => p.id === entry.projectId);
                   if (!project) return null;
-                  return <TimeEntryRow key={entry.id} entry={entry} project={project} />;
+                  return (
+                    <TimeEntryRow
+                      key={entry.id}
+                      entry={entry}
+                      project={project}
+                      onEdit={handleEditEntry}
+                      onDelete={handleDeleteEntry}
+                    />
+                  );
                 })
               )}
             </div>
@@ -249,6 +283,49 @@ const Index = () => {
           </Card>
         </div>
       </div>
+
+      {/* Dialog de confirmation de suppression */}
+      <AlertDialog open={!!deletingEntry} onOpenChange={(open) => !open && setDeletingEntry(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette session ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. La session de temps sera définitivement supprimée.
+              {deletingEntry && (
+                <div className="mt-3 p-3 rounded-lg bg-muted">
+                  <p className="text-sm text-foreground font-medium">
+                    Durée : {formatDurationShort(deletingEntry.duration)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(deletingEntry.startTime).toLocaleString('fr-FR')}
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingEntry(null)}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteEntry} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog d'édition */}
+      <EditTimeEntryDialog
+        entry={editingEntry}
+        open={!!editingEntry}
+        onOpenChange={(open) => !open && setEditingEntry(null)}
+        onSave={handleSaveEntry}
+      />
+
+      {/* Mode Focus - affiché par-dessus tout le contenu */}
+      {showFocusMode && activeTimer?.isRunning && (
+        <FocusMode onClose={() => setShowFocusMode(false)} />
+      )}
     </div>
   );
 };

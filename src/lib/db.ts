@@ -1,10 +1,20 @@
 import Dexie, { Table } from 'dexie';
 import { Project, TimeEntry, ActiveTimer } from './timeTracking';
 
+export interface User {
+  id: string;
+  username: string;
+  password: string; // Hashed password
+  role: 'admin' | 'standard';
+  createdAt: Date;
+  createdBy?: string; // ID de l'admin qui a créé l'utilisateur
+}
+
 export class TracklyDatabase extends Dexie {
   projects!: Table<Project, string>;
   timeEntries!: Table<TimeEntry, string>;
   activeTimer!: Table<ActiveTimer, string>;
+  users!: Table<User, string>;
 
   constructor() {
     super('TracklyDB');
@@ -26,10 +36,51 @@ export class TracklyDatabase extends Dexie {
       timeEntries: 'id, projectId, startTime, endTime, duration',
       activeTimer: 'id'
     });
+
+    // Migration pour ajouter users
+    this.version(4).stores({
+      projects: 'id, name, color, createdAt, plannedHoursPerDay',
+      timeEntries: 'id, projectId, startTime, endTime, duration',
+      activeTimer: 'id',
+      users: 'id, username, role, createdAt'
+    });
   }
 }
 
 export const db = new TracklyDatabase();
+
+// Fonction de hachage simple (pour production, utilisez bcrypt)
+const hashPassword = async (password: string): Promise<string> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+// Initialiser l'utilisateur admin par défaut
+export const initializeAdmin = async () => {
+  try {
+    const adminExists = await db.users.where('username').equals('admin').first();
+
+    if (!adminExists) {
+      const hashedPassword = await hashPassword('bkxBF%.uYbeXQ83g');
+      const adminUser: User = {
+        id: 'admin-001',
+        username: 'admin',
+        password: hashedPassword,
+        role: 'admin',
+        createdAt: new Date()
+      };
+
+      await db.users.add(adminUser);
+      console.log('✅ Utilisateur admin créé');
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'initialisation de l\'admin:', error);
+  }
+};
 
 // Migration automatique depuis localStorage vers IndexedDB
 export const migrateFromLocalStorage = async () => {
