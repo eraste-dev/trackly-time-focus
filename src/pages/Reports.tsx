@@ -25,7 +25,6 @@ const Reports = () => {
   const [period, setPeriod] = useState<"day" | "week" | "month">("day");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showCrossReport, setShowCrossReport] = useState(false);
-  const [crossReportPeriod, setCrossReportPeriod] = useState<"week" | "month">("week");
 
   // Filtrer les entrées selon la période, la date et le projet sélectionné
   const filteredEntries = useMemo(() => {
@@ -127,66 +126,6 @@ const Reports = () => {
     return totalDuration / daysCount;
   }, [totalDuration, period]);
 
-  // Générer les données pour le rapport croisé
-  const crossReportData = useMemo(() => {
-    const now = new Date();
-    const periodsCount = crossReportPeriod === "week" ? 12 : 6; // 12 semaines ou 6 mois
-    const periods: any[] = [];
-
-    for (let i = periodsCount - 1; i >= 0; i--) {
-      const periodDate = new Date(now);
-
-      if (crossReportPeriod === "week") {
-        periodDate.setDate(now.getDate() - i * 7);
-        const startOfWeek = new Date(periodDate);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
-        startOfWeek.setDate(diff);
-        startOfWeek.setHours(0, 0, 0, 0);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
-
-        const label = `S${Math.ceil(startOfWeek.getDate() / 7)} ${startOfWeek.toLocaleDateString("fr-FR", { month: "short" })}`;
-
-        periods.push({
-          label,
-          start: startOfWeek,
-          end: endOfWeek,
-          data: {},
-        });
-      } else {
-        periodDate.setMonth(now.getMonth() - i);
-        const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
-        startOfMonth.setHours(0, 0, 0, 0);
-        const endOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0);
-        endOfMonth.setHours(23, 59, 59, 999);
-
-        const label = startOfMonth.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
-
-        periods.push({
-          label,
-          start: startOfMonth,
-          end: endOfMonth,
-          data: {},
-        });
-      }
-    }
-
-    // Calculer les durées par projet et par période
-    periods.forEach((period) => {
-      projects.forEach((project) => {
-        const entries = timeEntries.filter((entry) => {
-          const entryDate = new Date(entry.startTime);
-          return entry.projectId === project.id && entryDate >= period.start && entryDate <= period.end;
-        });
-        period.data[project.id] = calculateTotalDuration(entries);
-      });
-    });
-
-    return periods;
-  }, [projects, timeEntries, crossReportPeriod]);
-
   // Fonction pour exporter les données en Excel
   const exportToExcel = () => {
     try {
@@ -255,7 +194,7 @@ const Reports = () => {
 
         {/* Contenu conditionnel : rapport normal ou rapport croisé */}
         {showCrossReport ? (
-          <CrossReportView crossReportData={crossReportData} crossReportPeriod={crossReportPeriod} setCrossReportPeriod={setCrossReportPeriod} projects={projects} />
+          <CrossReportView projects={projects} timeEntries={timeEntries} />
         ) : (
           <>
             {/* Filtres de période */}
