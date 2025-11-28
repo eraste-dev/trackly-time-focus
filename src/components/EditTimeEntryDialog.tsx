@@ -170,9 +170,20 @@ export const EditTimeEntryDialog = ({ entry, open, onOpenChange, onSave }: EditT
               </Label>
               <Input
                 id="start-time"
-                type="time"
+                type="text"
+                placeholder="HH:MM"
+                pattern="[0-2][0-9]:[0-5][0-9]"
+                maxLength={5}
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={(e) => {
+                  let value = e.target.value.replace(/[^0-9:]/g, '');
+                  if (value.length === 2 && !value.includes(':')) {
+                    value += ':';
+                  }
+                  if (value.length <= 5) {
+                    setStartTime(value);
+                  }
+                }}
               />
             </div>
           </div>
@@ -198,9 +209,20 @@ export const EditTimeEntryDialog = ({ entry, open, onOpenChange, onSave }: EditT
               </Label>
               <Input
                 id="end-time"
-                type="time"
+                type="text"
+                placeholder="HH:MM"
+                pattern="[0-2][0-9]:[0-5][0-9]"
+                maxLength={5}
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={(e) => {
+                  let value = e.target.value.replace(/[^0-9:]/g, '');
+                  if (value.length === 2 && !value.includes(':')) {
+                    value += ':';
+                  }
+                  if (value.length <= 5) {
+                    setEndTime(value);
+                  }
+                }}
               />
             </div>
           </div>
