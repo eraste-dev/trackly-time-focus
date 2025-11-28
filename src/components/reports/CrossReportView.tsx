@@ -624,7 +624,7 @@ export const CrossReportView = ({
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-left py-2 px-3 font-medium text-foreground sticky left-0 bg-white">Projet</th>
+                        <th className="text-left py-2 px-3 font-medium text-foreground sticky left-0 bg-background">Projet</th>
                         {crossReportData.map((periodData, idx) => (
                           <th key={idx} className="text-right py-2 px-3 font-medium text-foreground whitespace-nowrap">
                             {periodData.label}
@@ -643,7 +643,7 @@ export const CrossReportView = ({
 
                         return (
                           <tr key={project.id} className="border-b border-border/50 hover:bg-muted/50">
-                            <td className="py-2 px-3 sticky left-0 bg-white">
+                            <td className="py-2 px-3 sticky left-0 bg-background">
                               <div className="flex items-center gap-2">
                                 <div
                                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -667,7 +667,7 @@ export const CrossReportView = ({
                         );
                       })}
                       <tr className="border-t-2 border-border font-medium">
-                        <td className="py-2 px-3 text-foreground sticky left-0 bg-white">TOTAL</td>
+                        <td className="py-2 px-3 text-foreground sticky left-0 bg-background">TOTAL</td>
                         {crossReportData.map((periodData, idx) => {
                           const total = Object.values(periodData.data as Record<string, number>).reduce((sum, val) => sum + val, 0);
                           return (

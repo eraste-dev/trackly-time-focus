@@ -72,9 +72,9 @@ export const ReportFilters = ({
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <Tabs value={period} onValueChange={(v) => setPeriod(v as any)}>
         <TabsList className="bg-muted/50 p-1">
-          <TabsTrigger value="day" className="data-[state=active]:bg-white">Jour</TabsTrigger>
-          <TabsTrigger value="week" className="data-[state=active]:bg-white">Semaine</TabsTrigger>
-          <TabsTrigger value="month" className="data-[state=active]:bg-white">Mois</TabsTrigger>
+          <TabsTrigger value="day" className="data-[state=active]:bg-background">Jour</TabsTrigger>
+          <TabsTrigger value="week" className="data-[state=active]:bg-background">Semaine</TabsTrigger>
+          <TabsTrigger value="month" className="data-[state=active]:bg-background">Mois</TabsTrigger>
         </TabsList>
       </Tabs>
 

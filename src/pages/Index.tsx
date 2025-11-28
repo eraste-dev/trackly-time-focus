@@ -128,14 +128,14 @@ const Index = () => {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       {/* Header avec sélecteur de projet global */}
       <Header />
 
       <div className="container mx-auto px-4 sm:px-6 py-8 max-w-5xl">
         {/* Stats minimalistes */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
-          <div className="text-center py-6 border border-border rounded-lg bg-white">
+          <div className="text-center py-6 border border-border rounded-lg bg-background">
             <div className="flex justify-center mb-2">
               <Clock className="h-5 w-5 text-primary" />
             </div>
@@ -145,7 +145,7 @@ const Index = () => {
             <div className="text-xs text-muted-foreground">Aujourd'hui</div>
           </div>
 
-          <div className="text-center py-6 border border-border rounded-lg bg-white">
+          <div className="text-center py-6 border border-border rounded-lg bg-background">
             <div className="flex justify-center mb-2">
               <Clock className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -155,7 +155,7 @@ const Index = () => {
             <div className="text-xs text-muted-foreground">Cette semaine</div>
           </div>
 
-          <div className="text-center py-6 border border-border rounded-lg bg-white col-span-2 sm:col-span-1">
+          <div className="text-center py-6 border border-border rounded-lg bg-background col-span-2 sm:col-span-1">
             <div className="flex justify-center mb-2">
               <FolderOpen className="h-5 w-5 text-muted-foreground" />
             </div>

@@ -24,7 +24,7 @@ export const ProjectChart = ({ projectStats, periodLabel }: ProjectChartProps) =
         </h2>
 
         {/* Graphique */}
-        <div className="relative bg-white rounded-lg p-4 border border-border">
+        <div className="relative bg-background rounded-lg p-4 border border-border">
           <div className="flex items-end justify-between gap-2 h-64 relative">
             {/* Grille horizontale de fond */}
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">

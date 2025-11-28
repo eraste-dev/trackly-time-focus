@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import { ActiveTimerFooter } from "@/components/ActiveTimerFooter";
+import { FloatingProjectSelector } from "@/components/FloatingProjectSelector";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { migrateFromLocalStorage, initializeAdmin } from "@/lib/db";
 import { loadSyncData, startAutoSync, stopAutoSync, saveSyncData } from "@/lib/sync";
@@ -122,6 +123,7 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               <AppRoutes />
+              <FloatingProjectSelector />
               <ActiveTimerFooter />
             </BrowserRouter>
           </TooltipProvider>

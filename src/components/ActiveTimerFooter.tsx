@@ -82,7 +82,7 @@ export const ActiveTimerFooter = () => {
   const project = projects.find(p => p.id === activeTimer.projectId);
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border shadow-lg">
+    <footer className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-lg">
       <div className="container mx-auto px-4 sm:px-6 py-3 max-w-5xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
