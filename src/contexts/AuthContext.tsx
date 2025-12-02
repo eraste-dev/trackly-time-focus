@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { db, User } from '@/lib/db';
+import { usersApi, User } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface AuthContextType {
@@ -13,16 +13,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Fonction de hachage (doit être la même que dans db.ts)
-const hashPassword = async (password: string): Promise<string> => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,8 +24,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (sessionUser) {
         try {
           const user: User = JSON.parse(sessionUser);
-          // Vérifier que l'utilisateur existe toujours dans la DB
-          const dbUser = await db.users.get(user.id);
+          // Vérifier que l'utilisateur existe toujours via l'API
+          const dbUser = await usersApi.getById(user.id);
           if (dbUser) {
             setCurrentUser(dbUser);
           } else {
@@ -53,18 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const hashedPassword = await hashPassword(password);
-      const user = await db.users.where('username').equals(username).first();
-
-      if (!user) {
-        toast.error('Nom d\'utilisateur ou mot de passe incorrect');
-        return false;
-      }
-
-      if (user.password !== hashedPassword) {
-        toast.error('Nom d\'utilisateur ou mot de passe incorrect');
-        return false;
-      }
+      const user = await usersApi.login(username, password);
 
       // Connexion réussie
       setCurrentUser(user);
@@ -73,7 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return true;
     } catch (error) {
       console.error('Erreur lors de la connexion:', error);
-      toast.error('Erreur lors de la connexion');
+      toast.error('Nom d\'utilisateur ou mot de passe incorrect');
       return false;
     }
   };

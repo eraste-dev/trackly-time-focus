@@ -1,68 +1,93 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
-import { ActiveTimer } from '@/lib/timeTracking';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { timerApi, ActiveTimer, TimeEntry } from '@/lib/api';
 
 export const useActiveTimer = () => {
-  // Récupérer le timer actif en temps réel
-  const activeTimer = useLiveQuery(() => db.activeTimer.get('active'));
+  const queryClient = useQueryClient();
 
-  // Démarrer le timer
+  // Récupérer le timer actif
+  const { data: activeTimer, isLoading, error } = useQuery({
+    queryKey: ['activeTimer'],
+    queryFn: timerApi.get,
+    staleTime: 1000 * 5, // 5 seconds - refresh more often for timer
+    refetchInterval: 1000 * 10, // Poll every 10 seconds
+  });
+
+  // Mutation pour démarrer le timer
+  const startMutation = useMutation({
+    mutationFn: (projectId: string) => timerApi.start(projectId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activeTimer'] });
+      queryClient.invalidateQueries({ queryKey: ['timeEntries'] });
+    },
+  });
+
+  // Mutation pour arrêter le timer
+  const stopMutation = useMutation({
+    mutationFn: () => timerApi.stop(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activeTimer'] });
+      queryClient.invalidateQueries({ queryKey: ['timeEntries'] });
+    },
+  });
+
+  // Mutation pour mettre en pause
+  const pauseMutation = useMutation({
+    mutationFn: () => timerApi.pause(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activeTimer'] });
+    },
+  });
+
+  // Mutation pour reprendre
+  const resumeMutation = useMutation({
+    mutationFn: () => timerApi.resume(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activeTimer'] });
+    },
+  });
+
+  // Mutation pour changer de projet
+  const updateProjectMutation = useMutation({
+    mutationFn: (projectId: string) => timerApi.updateProject(projectId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activeTimer'] });
+    },
+  });
+
+  // Fonctions wrapper
   const startTimer = async (projectId: string) => {
-    const timer: ActiveTimer = {
-      id: 'active',
-      projectId,
-      startTime: new Date(),
-      isRunning: true,
-      isPaused: false,
-      totalPausedDuration: 0
-    };
-    await db.activeTimer.put(timer);
+    await startMutation.mutateAsync(projectId);
   };
 
-  // Arrêter le timer
   const stopTimer = async () => {
-    await db.activeTimer.delete('active');
+    await stopMutation.mutateAsync();
   };
 
-  // Mettre en pause le timer
   const pauseTimer = async () => {
-    if (activeTimer && !activeTimer.isPaused) {
-      await db.activeTimer.update('active', {
-        isPaused: true,
-        pausedAt: new Date()
-      });
-    }
+    await pauseMutation.mutateAsync();
   };
 
-  // Reprendre le timer après une pause
   const resumeTimer = async () => {
-    if (activeTimer && activeTimer.isPaused && activeTimer.pausedAt) {
-      const pauseDuration = Math.floor((Date.now() - activeTimer.pausedAt.getTime()) / 1000);
-      const newTotalPausedDuration = (activeTimer.totalPausedDuration || 0) + pauseDuration;
-
-      await db.activeTimer.update('active', {
-        isPaused: false,
-        pausedAt: undefined,
-        totalPausedDuration: newTotalPausedDuration
-      });
-    }
+    await resumeMutation.mutateAsync();
   };
 
-  // Mettre à jour le projet du timer
   const updateTimerProject = async (projectId: string) => {
-    if (activeTimer) {
-      await db.activeTimer.update('active', { projectId });
-    }
+    await updateProjectMutation.mutateAsync(projectId);
   };
 
   return {
-    activeTimer,
+    activeTimer: activeTimer ?? undefined,
+    isLoading,
+    error,
     startTimer,
     stopTimer,
     pauseTimer,
     resumeTimer,
     updateTimerProject,
     isRunning: activeTimer?.isRunning || false,
-    isPaused: activeTimer?.isPaused || false
+    isPaused: activeTimer?.isPaused || false,
   };
 };
+
+// Re-export ActiveTimer type for convenience
+export type { ActiveTimer } from '@/lib/api';

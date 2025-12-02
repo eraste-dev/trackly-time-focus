@@ -1,0 +1,31 @@
+version: '3.8'
+
+# Development docker-compose - runs only the backend
+# Frontend should be run with `npm run dev` for hot reloading
+
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: trackly-backend-dev
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=/app/data/trackly.db
+      - CORS_ORIGIN=http://localhost:8080
+    volumes:
+      - trackly-data-dev:/app/data
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  trackly-data-dev:
+    driver: local

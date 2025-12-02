@@ -4,150 +4,160 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Trackly is a time tracking application built with React, TypeScript, Vite, and shadcn/ui. The application allows users to track time spent on various projects, view statistics, and generate reports. Data is persisted using Dexie.js (IndexedDB wrapper) for robust, scalable local storage.
+Trackly is a time tracking application built with React, TypeScript, Vite, and shadcn/ui. The application allows users to track time spent on various projects, view statistics, and generate reports.
+
+**Architecture**: Full-stack application with:
+- **Frontend**: React/Vite SPA
+- **Backend**: Express.js + Drizzle ORM + SQLite
+- **Deployment**: Docker Compose
 
 ## Development Commands
 
+### Frontend (root directory)
+
 ```bash
 # Install dependencies
-npm i
+npm install
 
-# Start development server (runs on http://[::]:8080)
+# Start development server (runs on http://localhost:8080)
 npm run dev
 
 # Build for production
 npm run build
 
-# Build for development mode
-npm run build:dev
-
 # Run linter
 npm run lint
+```
 
-# Preview production build
-npm run preview
+### Backend (server/ directory)
+
+```bash
+cd server
+
+# Install dependencies
+npm install
+
+# Start development server (runs on http://localhost:3001)
+npm run dev
+
+# Database commands
+npm run db:generate   # Generate migrations from schema changes
+npm run db:migrate    # Apply migrations
+npm run db:seed       # Seed initial data (admin user, sample project)
+npm run db:studio     # Open Drizzle Studio (GUI for database)
+
+# Build for production
+npm run build
+npm start
+```
+
+### Docker
+
+```bash
+# Production: Build and run both services
+docker-compose up --build
+
+# Development: Run only backend in Docker
+docker-compose -f docker-compose.dev.yml up --build
+# Then run frontend locally: npm run dev
 ```
 
 ## Architecture
 
 ### Tech Stack
-- **Build Tool**: Vite with React SWC plugin
-- **UI Framework**: React 18 with TypeScript
-- **Routing**: React Router DOM v6
-- **Component Library**: shadcn/ui (built on Radix UI)
+- **Frontend**: React 18, TypeScript, Vite, shadcn/ui, TanStack Query
+- **Backend**: Express.js, Drizzle ORM, better-sqlite3
+- **Database**: SQLite (file-based, persisted in Docker volume)
 - **Styling**: Tailwind CSS with CSS variables for theming
-- **State Management**: React hooks + TanStack Query
-- **Database**: Dexie.js v4 (IndexedDB wrapper) with React hooks
-- **Notifications**: Sonner toast library
 
 ### Directory Structure
 
 ```
-src/
-├── components/           # Feature components (Timer, ProjectCard, etc.)
-├── components/ui/        # shadcn/ui components (DO NOT edit manually)
-├── hooks/               # Custom React hooks
-│   ├── useProjects.ts   # Hook for project CRUD operations
-│   ├── useTimeEntries.ts # Hook for time entry CRUD operations
-│   └── use-toast.ts     # Toast notifications hook
-├── lib/                 # Core utilities and business logic
-│   ├── db.ts            # Dexie database configuration and migration
-│   ├── timeTracking.ts  # Data models and time tracking utilities
-│   └── utils.ts         # Tailwind cn() utility
-├── pages/               # Route pages (Index, Projects, Reports, NotFound)
-├── App.tsx              # Main app with routing and providers setup
-├── main.tsx             # React entry point
-└── index.css            # Global styles and Tailwind directives
+├── src/                    # Frontend source
+│   ├── components/         # React components
+│   ├── components/ui/      # shadcn/ui components (DO NOT edit)
+│   ├── hooks/              # Custom React hooks (useProjects, useTimeEntries, etc.)
+│   ├── lib/
+│   │   ├── api.ts          # API client for backend communication
+│   │   └── timeTracking.ts # Time utility functions
+│   ├── pages/              # Route pages
+│   └── contexts/           # React contexts
+│
+├── server/                 # Backend source
+│   ├── src/
+│   │   ├── db/
+│   │   │   ├── schema.ts   # Drizzle schema definitions
+│   │   │   ├── index.ts    # Database connection
+│   │   │   ├── migrate.ts  # Migration runner
+│   │   │   └── seed.ts     # Database seeder
+│   │   ├── routes/         # Express route handlers
+│   │   │   ├── projects.ts
+│   │   │   ├── timeEntries.ts
+│   │   │   ├── activeTimer.ts
+│   │   │   └── users.ts
+│   │   └── index.ts        # Express server entry
+│   ├── drizzle/            # Generated migrations
+│   └── data/               # SQLite database file (gitignored)
+│
+├── docker-compose.yml      # Production deployment
+└── docker-compose.dev.yml  # Development (backend only)
 ```
 
-### Core Data Models
+### API Endpoints
 
-Located in [src/lib/timeTracking.ts](src/lib/timeTracking.ts):
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Health check |
+| GET/POST/PUT/DELETE | `/api/projects` | Project CRUD |
+| GET/POST/PUT/DELETE | `/api/time-entries` | Time entry CRUD |
+| GET/POST | `/api/timer` | Active timer management |
+| GET/POST/DELETE | `/api/users` | User management |
+| POST | `/api/users/login` | Authentication |
 
-- **Project**: `{ id, name, color, createdAt }`
-- **TimeEntry**: `{ id, projectId, startTime, endTime?, duration, description? }`
+### Database Schema
 
-### Data Persistence (Dexie.js + IndexedDB)
+Tables defined in `server/src/db/schema.ts`:
 
-**Database**: `TracklyDB` configured in [src/lib/db.ts](src/lib/db.ts)
+- **projects**: `id, name, color, createdAt, plannedHoursPerDay`
+- **time_entries**: `id, projectId, startTime, endTime, duration, description`
+- **active_timer**: `id, projectId, startTime, isRunning, isPaused, pausedAt, totalPausedDuration`
+- **users**: `id, username, password (hashed), role, createdAt, createdBy`
 
-**Tables**:
-- `projects` - Indexed by: id, name, color, createdAt
-- `timeEntries` - Indexed by: id, projectId, startTime, endTime, duration
+### Frontend Hooks
 
-**Key Features**:
-- ✅ Reactive updates with `useLiveQuery` - components auto-update when data changes
-- ✅ Automatic migration from localStorage on first launch
-- ✅ ACID transactions for data integrity
-- ✅ Hundreds of MB storage capacity (vs ~5-10 MB for localStorage)
-- ✅ Asynchronous operations that don't block UI
+All data fetching uses TanStack Query for caching and reactivity:
 
-**Custom Hooks**:
-- `useProjects()` - CRUD operations for projects with real-time updates
-- `useTimeEntries()` - CRUD operations for time entries with real-time updates
+- `useProjects()` - Project CRUD with automatic cache invalidation
+- `useTimeEntries()` - Time entry CRUD with automatic cache invalidation
+- `useActiveTimer()` - Timer state with polling for real-time updates
 
-See [DEXIE_IMPLEMENTATION.md](DEXIE_IMPLEMENTATION.md) for detailed documentation.
+### Authentication
 
-### Routing
+- Default admin: `admin` / `bkxBF%.uYbeXQ83g`
+- Passwords are SHA-256 hashed
+- Session stored in sessionStorage
 
-Routes defined in [src/App.tsx](src/App.tsx):
-- `/` - Dashboard (Index page) with timer and today's stats
-- `/projects` - Project management page
-- `/reports` - Time tracking reports and analytics
-- `*` - 404 Not Found page
+## Database Migrations
 
-All custom routes must be added ABOVE the catch-all `*` route.
+When changing the schema:
 
-### UI Components (shadcn/ui)
+1. Edit `server/src/db/schema.ts`
+2. Run `npm run db:generate` to create migration
+3. Run `npm run db:migrate` to apply
+4. Commit the migration file in `server/drizzle/`
 
-- Located in `src/components/ui/`
-- Generated via shadcn CLI, DO NOT manually edit
-- To add new components: use shadcn CLI (`npx shadcn@latest add <component>`)
-- Styled using Tailwind with CSS variables from `src/index.css`
-- Theme uses HSL color system with CSS custom properties
+## Docker Deployment
 
-### Path Aliases
+The application runs as two containers:
+- `trackly-backend`: Express API on port 3001 (internal)
+- `trackly-frontend`: Nginx serving SPA on port 8080, proxies /api to backend
 
-TypeScript path alias `@/*` maps to `./src/*` (configured in tsconfig.json and vite.config.ts)
-
-Example: `import { Timer } from '@/components/Timer'`
-
-### TypeScript Configuration
-
-- `noImplicitAny: false` - Allows implicit any types
-- `noUnusedParameters: false` - Doesn't enforce unused parameter checks
-- `noUnusedLocals: false` - Doesn't enforce unused locals checks
-- `strictNullChecks: false` - Relaxed null checking
-- ESLint has `@typescript-eslint/no-unused-vars` disabled
-
-### Styling
-
-- Tailwind CSS with custom theme extensions in [tailwind.config.ts](tailwind.config.ts)
-- Dark mode support via class strategy
-- CSS variables for colors defined in `src/index.css`
-- Use the `cn()` utility from `@/lib/utils` for conditional class merging
-
-### Time Tracking Utilities
-
-Key functions in [src/lib/timeTracking.ts](src/lib/timeTracking.ts):
-- `formatDuration(seconds)` - Format as `HH:MM:SS` or `MM:SS`
-- `formatDurationShort(seconds)` - Format as `Xh Ym` or `Xm`
-- `calculateTotalDuration(entries)` - Sum durations from entries
-- `getEntriesByPeriod(entries, 'day'|'week'|'month')` - Filter entries by time period
-
-### Project Integration with Lovable
-
-This project was created using Lovable (lovable.dev) and includes:
-- `lovable-tagger` plugin in development mode for component tracking
-- Automatic commits from Lovable will be synced to this repo
-- Project URL: https://lovable.dev/projects/c65327da-598b-49e6-bb15-880fe91236df
+Data persists in `trackly-data` Docker volume.
 
 ## Important Notes
 
-- Always use the `@/` path alias for imports from src directory
-- When adding new pages, update both the routing in App.tsx AND add imports at the top
-- **Data Access**: Always use `useProjects()` and `useTimeEntries()` hooks instead of accessing the database directly
-- **Reactivity**: Data from hooks updates automatically via `useLiveQuery` - no need for manual state management
-- All database operations are async - use `await` when calling CRUD functions
-- The app uses French language for UI text (e.g., "Aujourd'hui", "Cette semaine")
-- To reset the database: Open DevTools > Application > IndexedDB > Right-click TracklyDB > Delete
+- Always use the `@/` path alias for imports
+- Use hooks (`useProjects`, `useTimeEntries`) instead of direct API calls
+- All API operations are async - use `await`
+- UI text is in French (e.g., "Aujourd'hui", "Cette semaine")
+- To reset database: Delete `server/data/trackly.db` and re-run migrations/seed

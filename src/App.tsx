@@ -15,12 +15,18 @@ import NotFound from "./pages/NotFound";
 import { ActiveTimerFooter } from "@/components/ActiveTimerFooter";
 import { FloatingProjectSelector } from "@/components/FloatingProjectSelector";
 import { LoadingScreen } from "@/components/LoadingScreen";
-import { migrateFromLocalStorage, initializeAdmin } from "@/lib/db";
-import { loadSyncData, startAutoSync, stopAutoSync, saveSyncData } from "@/lib/sync";
 import { SelectedProjectProvider } from "@/contexts/SelectedProjectContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { healthApi } from "@/lib/api";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      staleTime: 1000 * 30, // 30 seconds
+    },
+  },
+});
 
 // Composant pour protéger les routes
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -58,60 +64,56 @@ const AppRoutes = () => {
 const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState('Initialisation...');
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  // Migration et initialisation au démarrage
+  // Vérification de la connexion API au démarrage
   useEffect(() => {
     const initialize = async () => {
       try {
         setIsLoading(true);
+        setLoadingMessage('Connexion au serveur...');
 
-        // Étape 1: Migration
-        setLoadingMessage('Migration des données...');
-        await migrateFromLocalStorage();
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Vérifier que l'API est disponible
+        await healthApi.check();
 
-        // Étape 1.5: Initialiser l'admin
-        setLoadingMessage('Initialisation de l\'admin...');
-        await initializeAdmin();
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        // Étape 2: Chargement depuis les fichiers de synchronisation
-        setLoadingMessage('Synchronisation en cours...');
-        const result = await loadSyncData();
-        if (result.success) {
-          console.log('✅', result.message);
-        } else {
-          console.log('ℹ️', result.message);
-        }
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Étape 3: Démarrer la synchronisation automatique
-        setLoadingMessage('Configuration de la synchronisation automatique...');
-        startAutoSync(5);
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        // Étape 4: Prêt
         setLoadingMessage('Application prête!');
         await new Promise(resolve => setTimeout(resolve, 200));
       } catch (error) {
-        console.error('❌ Erreur lors de l\'initialisation:', error);
+        console.error('Erreur lors de la connexion au serveur:', error);
+        setApiError('Impossible de se connecter au serveur. Vérifiez que le backend est démarré.');
       } finally {
         setIsLoading(false);
       }
     };
 
     initialize();
-
-    // Nettoyer à la fermeture
-    return () => {
-      stopAutoSync();
-      saveSyncData(); // Sauvegarder avant de quitter
-    };
   }, []);
 
   // Afficher l'écran de chargement pendant l'initialisation
   if (isLoading) {
-    return <LoadingScreen message={loadingMessage} details="Veuillez patienter pendant que nous chargeons vos données..." />;
+    return <LoadingScreen message={loadingMessage} details="Veuillez patienter..." />;
+  }
+
+  // Afficher un message d'erreur si l'API n'est pas disponible
+  if (apiError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="max-w-md text-center space-y-4">
+          <div className="text-6xl">⚠️</div>
+          <h1 className="text-2xl font-bold text-destructive">Erreur de connexion</h1>
+          <p className="text-muted-foreground">{apiError}</p>
+          <p className="text-sm text-muted-foreground">
+            Assurez-vous que le serveur backend est démarré sur le port 3001.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

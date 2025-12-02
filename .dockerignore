@@ -33,8 +33,11 @@ Thumbs.db
 
 # Docker
 Dockerfile
-docker-compose.yml
+docker-compose*.yml
 .dockerignore
+
+# Server (has its own build)
+server
 
 # Logs
 logs

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
-import { db, User } from '@/lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { usersApi, User } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,19 +31,14 @@ import { Navigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-// Fonction de hachage (doit être la même que dans db.ts)
-const hashPassword = async (password: string): Promise<string> => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-};
-
 export default function Users() {
+  const queryClient = useQueryClient();
   const { currentUser, isAdmin } = useAuth();
-  const users = useLiveQuery(() => db.users.toArray()) || [];
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: usersApi.getAll,
+  });
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -51,7 +46,42 @@ export default function Users() {
 
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  // Mutation pour créer un utilisateur
+  const createMutation = useMutation({
+    mutationFn: ({ username, password }: { username: string; password: string }) =>
+      usersApi.create(username, password, 'standard', currentUser?.id),
+    onSuccess: (newUser) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success(`Utilisateur ${newUser.username} créé avec succès`);
+      setNewUsername('');
+      setNewPassword('');
+      setCreateDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      console.error('Erreur lors de la création:', error);
+      if (error.message.includes('exists')) {
+        toast.error('Ce nom d\'utilisateur existe déjà');
+      } else {
+        toast.error('Erreur lors de la création de l\'utilisateur');
+      }
+    },
+  });
+
+  // Mutation pour supprimer un utilisateur
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => usersApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success(`Utilisateur ${userToDelete?.username} supprimé`);
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+    },
+    onError: (error: Error) => {
+      console.error('Erreur lors de la suppression:', error);
+      toast.error('Erreur lors de la suppression');
+    },
+  });
 
   // Rediriger si l'utilisateur n'est pas admin
   if (!isAdmin) {
@@ -69,53 +99,12 @@ export default function Users() {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      // Vérifier si l'utilisateur existe déjà
-      const existing = await db.users.where('username').equals(newUsername).first();
-      if (existing) {
-        toast.error('Ce nom d\'utilisateur existe déjà');
-        setLoading(false);
-        return;
-      }
-
-      const hashedPassword = await hashPassword(newPassword);
-      const newUser: User = {
-        id: `user-${Date.now()}`,
-        username: newUsername,
-        password: hashedPassword,
-        role: 'standard',
-        createdAt: new Date(),
-        createdBy: currentUser?.id
-      };
-
-      await db.users.add(newUser);
-      toast.success(`Utilisateur ${newUsername} créé avec succès`);
-
-      setNewUsername('');
-      setNewPassword('');
-      setCreateDialogOpen(false);
-    } catch (error) {
-      console.error('Erreur lors de la création:', error);
-      toast.error('Erreur lors de la création de l\'utilisateur');
-    } finally {
-      setLoading(false);
-    }
+    createMutation.mutate({ username: newUsername, password: newPassword });
   };
 
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
-
-    try {
-      await db.users.delete(userToDelete.id);
-      toast.success(`Utilisateur ${userToDelete.username} supprimé`);
-      setDeleteDialogOpen(false);
-      setUserToDelete(null);
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-      toast.error('Erreur lors de la suppression');
-    }
+    deleteMutation.mutate(userToDelete.id);
   };
 
   const standardUsers = users.filter(u => u.role === 'standard');
@@ -267,7 +256,7 @@ export default function Users() {
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 placeholder="Ex: jean.dupont"
-                disabled={loading}
+                disabled={createMutation.isPending}
               />
             </div>
 
@@ -279,7 +268,7 @@ export default function Users() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Min. 6 caractères"
-                disabled={loading}
+                disabled={createMutation.isPending}
               />
               <p className="text-xs text-muted-foreground">
                 Le mot de passe doit contenir au moins 6 caractères
@@ -288,11 +277,11 @@ export default function Users() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={loading}>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={createMutation.isPending}>
               Annuler
             </Button>
-            <Button onClick={handleCreateUser} disabled={loading}>
-              {loading ? 'Création...' : 'Créer l\'utilisateur'}
+            <Button onClick={handleCreateUser} disabled={createMutation.isPending}>
+              {createMutation.isPending ? 'Création...' : 'Créer l\'utilisateur'}
             </Button>
           </DialogFooter>
         </DialogContent>
